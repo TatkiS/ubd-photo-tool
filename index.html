@@ -299,6 +299,9 @@
         <input type="file" id="fileInput" accept="image/*" style="font-family:Arial; font-size:13px;">
         <button class="ghost" id="resetBtn" disabled>Скинути</button>
       </div>
+      <div class="upload-row" style="border-top:none; padding-top:0;">
+        <button class="primary" id="bgModeBtn" style="flex:1;" disabled>Прибирання фону: Увімкнено</button>
+      </div>
     </div>
     <div class="stamp-note">
       <b>Як це працює:</b> клацання по фону видаляє піксель того ж кольору (і близьких відтінків) по всьому фото — як «магічна паличка». Якщо фон забрався не повністю або зачепило одяг/обличчя — зменшіть чутливість і клацніть ще раз, або натисніть «Скинути» і почніть знову.
@@ -437,6 +440,16 @@
   const statusText = document.getElementById('status-text');
   const toleranceInput = document.getElementById('tolerance');
   const resetBtn = document.getElementById('resetBtn');
+  const bgModeBtn = document.getElementById('bgModeBtn');
+  function setBgMode(active){
+    bgRemovalActive = active;
+    bgModeBtn.textContent = 'Прибирання фону: ' + (active ? 'Увімкнено' : 'Вимкнено');
+    bgModeBtn.classList.toggle('primary', active);
+    bgModeBtn.classList.toggle('ghost', !active);
+    overlayCanvas.style.cursor = active ? 'crosshair' : (cropRect ? 'move' : 'default');
+    hint.style.display = active ? 'block' : 'none';
+  }
+  bgModeBtn.addEventListener('click', ()=> setBgMode(!bgRemovalActive));
   const recropBtn = document.getElementById('recropBtn');
   const applyBtn = document.getElementById('applyBtn');
   const downloadBtn = document.getElementById('downloadBtn');
@@ -452,6 +465,8 @@
   let bgColor = '#ffffff';
   let cropRect = null; // {x,y,w,h} in canvas pixel coords
   let dragState = null;
+  let justDragged = false;
+  let bgRemovalActive = true;
   let resultCanvas = null;
 
   // ---- official-style standards per document size: face fill % (chin-to-crown vs photo height), eye line position ----
@@ -523,6 +538,8 @@
     resetBtn.disabled = false;
     recropBtn.disabled = false;
     applyBtn.disabled = false;
+    bgModeBtn.disabled = false;
+    setBgMode(true);
 
     cropRect = null;
     overlayCtx.clearRect(0,0,w,h);
@@ -530,7 +547,8 @@
 
   // ---- background removal via flood-fill-ish color similarity (global, not flood fill, simpler & robust for studio-ish backgrounds) ----
   overlayCanvas.addEventListener('click', (e)=>{
-    if(dragState) return; // ignore clicks that are part of dragging crop
+    if(!bgRemovalActive) return;
+    if(dragState || justDragged) { justDragged = false; return; }
     const rect = overlayCanvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -593,6 +611,7 @@
     const size = Math.min(w,h) * 0.7;
     cropRect = { x:(w-size)/2, y:(h-size*1.3)/2, w:size, h:size*1.3 };
     if(cropRect.y < 0) cropRect.y = 0;
+    setBgMode(false);
     renderComposited();
   });
 
@@ -713,7 +732,10 @@
     renderOverlay();
   });
 
-  window.addEventListener('mouseup', ()=>{ dragState = null; });
+  window.addEventListener('mouseup', ()=>{
+    if(dragState) justDragged = true;
+    dragState = null;
+  });
 
   sizePreset.addEventListener('change', ()=>{
     if(cropRect){
