@@ -100,6 +100,21 @@
     max-width:100%;
     display:block;
   }
+  .canvas-wrap{
+    position:relative;
+    display:inline-block;
+    max-width:100%;
+  }
+  .canvas-wrap canvas{
+    max-width:100%;
+    display:block;
+  }
+  #overlayCanvas{
+    position:absolute;
+    top:0; left:0;
+    width:100%; height:100%;
+    cursor:crosshair;
+  }
   .stage .hint{
     position:absolute;
     bottom:10px; left:0; right:0;
@@ -274,7 +289,10 @@
           <b>Тут з’явиться ваше фото</b>
           Завантажте знімок нижче. Потім клацніть по фону на фото,<br>щоб прибрати його — інструмент підхопить колір і прибере схожі тони.
         </div>
-        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="canvas" style="display:none;"></canvas>
+          <canvas id="overlayCanvas" style="display:none;"></canvas>
+        </div>
         <div class="hint" id="hint" style="display:none;">Клацніть по фону, щоб прибрати його</div>
       </div>
       <div class="upload-row">
@@ -412,6 +430,8 @@
   const stage = document.getElementById('stage');
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d', {willReadFrequently:true});
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  const overlayCtx = overlayCanvas.getContext('2d');
   const emptyState = document.getElementById('emptyState');
   const hint = document.getElementById('hint');
   const statusText = document.getElementById('status-text');
@@ -490,11 +510,14 @@
     }
     canvas.width = w;
     canvas.height = h;
+    overlayCanvas.width = w;
+    overlayCanvas.height = h;
     ctx.drawImage(img, 0, 0, w, h);
     originalImageData = ctx.getImageData(0,0,w,h);
 
     emptyState.style.display = 'none';
     canvas.style.display = 'block';
+    overlayCanvas.style.display = 'block';
     hint.style.display = 'block';
     statusText.textContent = 'Фото завантажено — клацніть по фону';
     resetBtn.disabled = false;
@@ -502,13 +525,13 @@
     applyBtn.disabled = false;
 
     cropRect = null;
-    clearCropOverlay();
+    overlayCtx.clearRect(0,0,w,h);
   }
 
   // ---- background removal via flood-fill-ish color similarity (global, not flood fill, simpler & robust for studio-ish backgrounds) ----
-  canvas.addEventListener('click', (e)=>{
+  overlayCanvas.addEventListener('click', (e)=>{
     if(dragState) return; // ignore clicks that are part of dragging crop
-    const rect = canvas.getBoundingClientRect();
+    const rect = overlayCanvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const x = Math.floor((e.clientX - rect.left) * scaleX);
@@ -542,6 +565,12 @@
     ctx.fillStyle = bgColor;
     ctx.fillRect(0,0,w,h);
     ctx.putImageData(originalImageData, 0, 0);
+    renderOverlay();
+  }
+
+  function renderOverlay(){
+    const w = overlayCanvas.width, h = overlayCanvas.height;
+    overlayCtx.clearRect(0,0,w,h);
     drawCropOverlay();
   }
 
@@ -579,15 +608,25 @@
 
   function drawCropOverlay(){
     if(!cropRect) return;
-    ctx.save();
-    ctx.strokeStyle = '#a3372f';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6,4]);
-    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-    ctx.setLineDash([]);
-    // resize handle
-    ctx.fillStyle = '#a3372f';
-    ctx.fillRect(cropRect.x+cropRect.w-8, cropRect.y+cropRect.h-8, 16, 16);
+    const octx = overlayCtx;
+    octx.save();
+    octx.strokeStyle = '#a3372f';
+    octx.lineWidth = 2;
+    octx.setLineDash([6,4]);
+    octx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+    octx.setLineDash([]);
+
+    // resize handles on all four corners
+    const corners = [
+      [cropRect.x, cropRect.y],
+      [cropRect.x+cropRect.w, cropRect.y],
+      [cropRect.x, cropRect.y+cropRect.h],
+      [cropRect.x+cropRect.w, cropRect.y+cropRect.h]
+    ];
+    octx.fillStyle = '#a3372f';
+    corners.forEach(([cx,cy])=>{
+      octx.fillRect(cx-7, cy-7, 14, 14);
+    });
 
     // ---- standard guide lines: crown / eyes / chin ----
     const s = STANDARDS[sizePreset.value] || STANDARDS['custom'];
@@ -597,48 +636,59 @@
     const chinY = crownY + faceH;
 
     function guideLine(y, text, color){
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4,3]);
-      ctx.beginPath();
-      ctx.moveTo(cropRect.x, y);
-      ctx.lineTo(cropRect.x+cropRect.w, y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.font = '11px Arial';
-      ctx.fillStyle = color;
-      const tw = ctx.measureText(text).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.fillRect(cropRect.x+2, y-13, tw+6, 14);
-      ctx.fillStyle = color;
-      ctx.fillText(text, cropRect.x+5, y-2);
+      octx.strokeStyle = color;
+      octx.lineWidth = 1.5;
+      octx.setLineDash([4,3]);
+      octx.beginPath();
+      octx.moveTo(cropRect.x, y);
+      octx.lineTo(cropRect.x+cropRect.w, y);
+      octx.stroke();
+      octx.setLineDash([]);
+      octx.font = '11px Arial';
+      const tw = octx.measureText(text).width;
+      octx.fillStyle = 'rgba(255,255,255,0.9)';
+      octx.fillRect(cropRect.x+2, y-13, tw+6, 14);
+      octx.fillStyle = color;
+      octx.fillText(text, cropRect.x+5, y-2);
     }
     guideLine(crownY, 'маківка', '#1f3a5c');
     guideLine(eyeY, 'очі', '#a3372f');
     guideLine(chinY, 'підборіддя', '#1f3a5c');
 
-    ctx.restore();
+    octx.restore();
   }
 
-  canvas.addEventListener('mousedown', (e)=>{
+  overlayCanvas.addEventListener('mousedown', (e)=>{
     if(!cropRect) return;
-    const rect = canvas.getBoundingClientRect();
+    const rect = overlayCanvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    const handleX = cropRect.x+cropRect.w, handleY = cropRect.y+cropRect.h;
-    if(Math.abs(x-handleX) < 14 && Math.abs(y-handleY) < 14){
-      dragState = {mode:'resize'};
+    const corners = {
+      tl:{x:cropRect.x, y:cropRect.y, anchorX:cropRect.x+cropRect.w, anchorY:cropRect.y+cropRect.h},
+      tr:{x:cropRect.x+cropRect.w, y:cropRect.y, anchorX:cropRect.x, anchorY:cropRect.y+cropRect.h},
+      bl:{x:cropRect.x, y:cropRect.y+cropRect.h, anchorX:cropRect.x+cropRect.w, anchorY:cropRect.y},
+      br:{x:cropRect.x+cropRect.w, y:cropRect.y+cropRect.h, anchorX:cropRect.x, anchorY:cropRect.y}
+    };
+
+    let hitCorner = null;
+    for(const key in corners){
+      const c = corners[key];
+      if(Math.abs(x-c.x) < 14 && Math.abs(y-c.y) < 14){ hitCorner = key; break; }
+    }
+
+    if(hitCorner){
+      dragState = { mode:'resize', anchorX: corners[hitCorner].anchorX, anchorY: corners[hitCorner].anchorY };
     } else if(x>cropRect.x && x<cropRect.x+cropRect.w && y>cropRect.y && y<cropRect.y+cropRect.h){
       dragState = {mode:'move', offX: x-cropRect.x, offY: y-cropRect.y};
     }
   });
 
-  canvas.addEventListener('mousemove', (e)=>{
+  overlayCanvas.addEventListener('mousemove', (e)=>{
     if(!dragState || !cropRect) return;
-    const rect = canvas.getBoundingClientRect();
+    const rect = overlayCanvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     const x = (e.clientX - rect.left) * scaleX;
@@ -649,16 +699,18 @@
       cropRect.y = Math.max(0, Math.min(canvas.height-cropRect.h, y - dragState.offY));
     } else if(dragState.mode === 'resize'){
       const aspect = getAspect();
-      let newW = Math.max(20, x - cropRect.x);
+      const ax = dragState.anchorX, ay = dragState.anchorY;
+      let newW = Math.max(20, Math.abs(x-ax));
       let newH = newW / aspect;
-      if(cropRect.y + newH > canvas.height){
-        newH = canvas.height - cropRect.y;
-        newW = newH * aspect;
-      }
-      cropRect.w = newW;
-      cropRect.h = newH;
+      let newX = Math.min(x, ax);
+      let newY;
+      if(y >= ay){ newY = ay; } else { newY = ay - newH; }
+      // clamp to canvas bounds
+      newX = Math.max(0, Math.min(canvas.width-newW, newX));
+      newY = Math.max(0, Math.min(canvas.height-newH, newY));
+      cropRect.x = newX; cropRect.y = newY; cropRect.w = newW; cropRect.h = newH;
     }
-    renderComposited();
+    renderOverlay();
   });
 
   window.addEventListener('mouseup', ()=>{ dragState = null; });
