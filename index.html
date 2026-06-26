@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Фото для документів — УБД</title>
+<style>
+  :root{
+    --paper:#f3f1ec;
+    --ink:#1c2430;
+    --line:#cfc8b8;
+    --navy:#1f3a5c;
+    --navy-deep:#142a44;
+    --stamp:#a3372f;
+    --panel:#ffffff;
+    --muted:#6b7280;
+    --ok:#2f6b4f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.025) 0 1px, transparent 1px 28px);
+    color:var(--ink);
+    font-family: "Georgia", "Times New Roman", serif;
+    min-height:100vh;
+  }
+  header{
+    padding:28px 24px 18px;
+    border-bottom:2px solid var(--ink);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  header .eyebrow{
+    font-family: Arial, sans-serif;
+    font-size:11px;
+    letter-spacing:2.5px;
+    text-transform:uppercase;
+    color:var(--stamp);
+    font-weight:700;
+  }
+  header h1{
+    margin:2px 0 0;
+    font-size:26px;
+    font-weight:700;
+  }
+  header .meta{
+    font-family: Arial, sans-serif;
+    font-size:12px;
+    color:var(--muted);
+    text-align:right;
+  }
+  main{
+    max-width:1080px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap:24px;
+  }
+  @media (max-width: 860px){
+    main{grid-template-columns:1fr;}
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    box-shadow: 0 1px 0 var(--line), 0 6px 16px rgba(20,20,10,0.05);
+  }
+  .panel-head{
+    font-family: Arial, sans-serif;
+    font-size:11px;
+    letter-spacing:1.8px;
+    text-transform:uppercase;
+    color:var(--muted);
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .panel-body{padding:18px;}
+
+  .stage{
+    position:relative;
+    background:
+      repeating-conic-gradient(#e7e7e7 0% 25%, #fafafa 0% 50%) 0 0/22px 22px;
+    border:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:380px;
+    overflow:hidden;
+    cursor:crosshair;
+  }
+  .stage canvas{
+    max-width:100%;
+    display:block;
+  }
+  .stage .hint{
+    position:absolute;
+    bottom:10px; left:0; right:0;
+    text-align:center;
+    font-family: Arial, sans-serif;
+    font-size:12px;
+    color:#fff;
+    background:rgba(20,20,20,0.55);
+    padding:6px 10px;
+    pointer-events:none;
+  }
+  .empty-state{
+    font-family: Arial, sans-serif;
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    padding:40px;
+  }
+  .empty-state b{display:block; color:var(--ink); font-size:15px; margin-bottom:6px; font-family:Georgia,serif;}
+
+  .upload-row{
+    display:flex; gap:10px; padding:14px 18px; border-top:1px solid var(--line);
+    font-family: Arial, sans-serif;
+  }
+
+  label.field{
+    display:block;
+    font-family: Arial, sans-serif;
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:6px;
+    margin-top:16px;
+  }
+  label.field:first-child{margin-top:0;}
+
+  select, input[type=range]{
+    width:100%;
+    font-family: Arial, sans-serif;
+    font-size:14px;
+    padding:8px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+  }
+
+  .swatches{display:flex; gap:8px; margin-top:4px;}
+  .swatch{
+    width:34px; height:34px;
+    border:2px solid transparent;
+    border-radius:3px;
+    cursor:pointer;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+  }
+  .swatch.active{border-color:var(--stamp);}
+  .swatch.white{background:#ffffff;}
+  .swatch.lightblue{background:#dce8f5;}
+  .swatch.blue{background:#3b6fa3;}
+  .swatch.grey{background:#cfd2d6;}
+  .swatch.red{background:#9c3a32;}
+
+  .row{display:flex; gap:10px;}
+  .row > *{flex:1;}
+
+  button{
+    font-family: Arial, sans-serif;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.4px;
+    padding:11px 14px;
+    border:1px solid var(--ink);
+    background:#fff;
+    color:var(--ink);
+    cursor:pointer;
+    transition: all .15s ease;
+  }
+  button:hover{background:var(--ink); color:#fff;}
+  button.primary{
+    background:var(--navy);
+    border-color:var(--navy-deep);
+    color:#fff;
+  }
+  button.primary:hover{background:var(--navy-deep);}
+  button.ghost{
+    background:transparent;
+    border-color:var(--line);
+    color:var(--muted);
+  }
+  button.ghost:hover{background:var(--ink); color:#fff; border-color:var(--ink);}
+  button:disabled{opacity:0.4; cursor:not-allowed;}
+  button:disabled:hover{background:#fff; color:var(--ink);}
+
+  .stamp-note{
+    font-family: Arial, sans-serif;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.5;
+    padding:14px 18px;
+    border-top:1px dashed var(--line);
+  }
+  .stamp-note b{color:var(--ink);}
+
+  .preview-wrap{
+    display:flex; align-items:center; justify-content:center;
+    min-height:280px;
+    background:repeating-linear-gradient(45deg,#fff 0 10px,#f6f5f0 10px 20px);
+    border:1px solid var(--line);
+    padding:16px;
+  }
+  .preview-frame{
+    background:#fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    position:relative;
+  }
+  .preview-frame img{display:block;}
+  .preview-frame .guide{
+    position:absolute; inset:0;
+    border:1px dashed rgba(0,0,0,0.25);
+    pointer-events:none;
+  }
+
+  .dims-readout{
+    font-family: Arial, sans-serif;
+    font-size:12px;
+    color:var(--muted);
+    text-align:center;
+    margin-top:10px;
+  }
+  .dims-readout b{color:var(--navy); font-size:14px;}
+
+  .footer-note{
+    max-width:1080px;
+    margin:0 auto;
+    padding:0 24px 50px;
+    font-family: Arial, sans-serif;
+    font-size:11px;
+    color:var(--muted);
+    border-top:1px solid var(--line);
+    padding-top:14px;
+  }
+  input[type="number"]{
+    font-family: Arial, sans-serif;
+    padding:7px;
+    border:1px solid var(--line);
+    width:100%;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">Підготовка фото · документ</div>
+    <h1>Фото для документів УБД</h1>
+  </div>
+  <div class="meta">
+    Видалення фону · стандартні розміри · 300 dpi друк
+  </div>
+</header>
+
+<main>
+  <!-- LEFT: working area -->
+  <div class="panel">
+    <div class="panel-head">
+      <span>01 · Робоче полотно</span>
+      <span id="status-text">Очікує фото</span>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <div class="stage" id="stage">
+        <div class="empty-state" id="emptyState">
+          <b>Тут з’явиться ваше фото</b>
+          Завантажте знімок нижче. Потім клацніть по фону на фото,<br>щоб прибрати його — інструмент підхопить колір і прибере схожі тони.
+        </div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="hint" id="hint" style="display:none;">Клацніть по фону, щоб прибрати його</div>
+      </div>
+      <div class="upload-row">
+        <input type="file" id="fileInput" accept="image/*" style="font-family:Arial; font-size:13px;">
+        <button class="ghost" id="resetBtn" disabled>Скинути</button>
+      </div>
+    </div>
+    <div class="stamp-note">
+      <b>Як це працює:</b> клацання по фону видаляє піксель того ж кольору (і близьких відтінків) по всьому фото — як «магічна паличка». Якщо фон забрався не повністю або зачепило одяг/обличчя — зменшіть чутливість і клацніть ще раз, або натисніть «Скинути» і почніть знову.
+    </div>
+  </div>
+
+  <!-- RIGHT: controls -->
+  <div class="panel">
+    <div class="panel-head">
+      <span>02 · Налаштування</span>
+    </div>
+    <div class="panel-body">
+
+      <label class="field">Чутливість видалення фону</label>
+      <input type="range" id="tolerance" min="5" max="100" value="32">
+
+      <label class="field">Колір підкладки документа</label>
+      <div class="swatches">
+        <div class="swatch white active" data-color="#ffffff" title="Білий"></div>
+        <div class="swatch lightblue" data-color="#dce8f5" title="Світло-блакитний"></div>
+        <div class="swatch blue" data-color="#2f5d8c" title="Синій"></div>
+        <div class="swatch grey" data-color="#d6d6d6" title="Сірий"></div>
+        <div class="swatch red" data-color="#7a2a24" title="Червоний (для деяких посвідчень)"></div>
+      </div>
+
+      <label class="field">Розмір під документ</label>
+      <select id="sizePreset">
+        <option value="30x40">3 × 4 см — посвідчення УБД, паспорт, довідки</option>
+        <option value="35x45">3,5 × 4,5 см — біометричний паспорт, ID-картка</option>
+        <option value="40x50">4 × 5 см — водійське, інші посвідчення</option>
+        <option value="40x60">4 × 6 см — деякі анкети/військові документи</option>
+        <option value="custom">Інший розмір (вказати см)</option>
+      </select>
+
+      <div class="row" id="customSizeRow" style="display:none; margin-top:10px;">
+        <div>
+          <label class="field">Ширина, см</label>
+          <input type="number" id="customW" value="3" step="0.1" min="0.5">
+        </div>
+        <div>
+          <label class="field">Висота, см</label>
+          <input type="number" id="customH" value="4" step="0.1" min="0.5">
+        </div>
+      </div>
+
+      <label class="field">Кадрування</label>
+      <div style="font-family:Arial; font-size:12px; color:var(--muted); margin-bottom:8px;">
+        Перетягуйте рамку прямо на фото в полотні зліва, щоб обрати ділянку обличчя.
+      </div>
+
+      <div class="row" style="margin-top:18px;">
+        <button class="ghost" id="recropBtn" disabled>Показати рамку кадрування</button>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <button class="primary" id="applyBtn" disabled>Сформувати фото</button>
+      </div>
+
+    </div>
+
+    <div class="panel-head" style="border-top:1px solid var(--line);">
+      <span>03 · Результат</span>
+    </div>
+    <div class="panel-body">
+      <div class="preview-wrap">
+        <div class="preview-frame" id="previewFrame">
+          <span style="font-family:Arial; font-size:12px; color:var(--muted);">тут з'явиться готове фото</span>
+        </div>
+      </div>
+      <div class="dims-readout" id="dimsReadout"></div>
+      <div class="row" style="margin-top:16px;">
+        <button class="primary" id="downloadBtn" disabled>Завантажити одне фото (PNG, 300 dpi)</button>
+      </div>
+    </div>
+
+    <div class="panel-head" style="border-top:1px solid var(--line);">
+      <span>04 · Аркуш для друку</span>
+    </div>
+    <div class="panel-body">
+      <div style="font-family:Arial; font-size:12px; color:var(--muted); margin-bottom:4px;">
+        Так роблять у фотоательє — кілька копій на одному аркуші фотопаперу, з лініями для розрізання.
+      </div>
+
+      <label class="field">Розмір фотопаперу</label>
+      <select id="paperPreset">
+        <option value="10x15">10 × 15 см (стандартний фотопапір)</option>
+        <option value="13x18">13 × 18 см</option>
+        <option value="A4">A4 — 21 × 29,7 см</option>
+      </select>
+
+      <label class="field">Кількість копій на аркуші</label>
+      <select id="copiesCount">
+        <option value="auto" selected>Автоматично — заповнити аркуш</option>
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="6">6</option>
+        <option value="8">8</option>
+      </select>
+
+      <div class="row" style="margin-top:16px;">
+        <button class="primary" id="buildSheetBtn" disabled>Сформувати аркуш</button>
+      </div>
+
+      <div class="preview-wrap" style="margin-top:14px;">
+        <div class="preview-frame" id="sheetPreviewFrame">
+          <span style="font-family:Arial; font-size:12px; color:var(--muted);">тут з'явиться аркуш для друку</span>
+        </div>
+      </div>
+      <div class="dims-readout" id="sheetDimsReadout"></div>
+
+      <div class="row" style="margin-top:16px;">
+        <button class="primary" id="downloadSheetBtn" disabled>Завантажити аркуш для друку (PNG, 300 dpi)</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="footer-note">
+  Обробка відбувається повністю у вашому браузері — фото нікуди не надсилається. Готовий файл — растровий PNG у вибраному розмірі з білим (або обраним) фоном, готовий для друку у фотоательє або вставки в електронну анкету.
+</div>
+
+<script>
+(function(){
+  const fileInput = document.getElementById('fileInput');
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', {willReadFrequently:true});
+  const emptyState = document.getElementById('emptyState');
+  const hint = document.getElementById('hint');
+  const statusText = document.getElementById('status-text');
+  const toleranceInput = document.getElementById('tolerance');
+  const resetBtn = document.getElementById('resetBtn');
+  const recropBtn = document.getElementById('recropBtn');
+  const applyBtn = document.getElementById('applyBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const sizePreset = document.getElementById('sizePreset');
+  const customSizeRow = document.getElementById('customSizeRow');
+  const customW = document.getElementById('customW');
+  const customH = document.getElementById('customH');
+  const previewFrame = document.getElementById('previewFrame');
+  const dimsReadout = document.getElementById('dimsReadout');
+
+  let img = null;
+  let originalImageData = null; // pristine pixel data after bg removal, RGBA with alpha holes
+  let bgColor = '#ffffff';
+  let cropRect = null; // {x,y,w,h} in canvas pixel coords
+  let dragState = null;
+  let resultCanvas = null;
+
+  document.querySelectorAll('.swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{
+      document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+      sw.classList.add('active');
+      bgColor = sw.dataset.color;
+    });
+  });
+
+  sizePreset.addEventListener('change', ()=>{
+    customSizeRow.style.display = sizePreset.value === 'custom' ? 'flex' : 'none';
+  });
+
+  fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      img = new Image();
+      img.onload = function(){
+        setupCanvas();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function setupCanvas(){
+    const maxDim = 600;
+    let w = img.width, h = img.height;
+    if(w > maxDim || h > maxDim){
+      const scale = Math.min(maxDim/w, maxDim/h);
+      w = Math.round(w*scale);
+      h = Math.round(h*scale);
+    }
+    canvas.width = w;
+    canvas.height = h;
+    ctx.drawImage(img, 0, 0, w, h);
+    originalImageData = ctx.getImageData(0,0,w,h);
+
+    emptyState.style.display = 'none';
+    canvas.style.display = 'block';
+    hint.style.display = 'block';
+    statusText.textContent = 'Фото завантажено — клацніть по фону';
+    resetBtn.disabled = false;
+    recropBtn.disabled = false;
+    applyBtn.disabled = false;
+
+    cropRect = null;
+    clearCropOverlay();
+  }
+
+  // ---- background removal via flood-fill-ish color similarity (global, not flood fill, simpler & robust for studio-ish backgrounds) ----
+  canvas.addEventListener('click', (e)=>{
+    if(dragState) return; // ignore clicks that are part of dragging crop
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * scaleX);
+    const y = Math.floor((e.clientY - rect.top) * scaleY);
+    removeBackgroundAt(x,y);
+  });
+
+  function removeBackgroundAt(x,y){
+    const w = canvas.width, h = canvas.height;
+    const data = originalImageData.data;
+    const idx = (y*w + x) * 4;
+    const r0 = data[idx], g0 = data[idx+1], b0 = data[idx+2];
+    const tol = parseInt(toleranceInput.value, 10);
+
+    const imgData = ctx.createImageData(w,h);
+    const out = imgData.data;
+    for(let i=0; i<data.length; i+=4){
+      const r=data[i], g=data[i+1], b=data[i+2], a=data[i+3];
+      const dist = Math.sqrt((r-r0)**2 + (g-g0)**2 + (b-b0)**2);
+      out[i]=r; out[i+1]=g; out[i+2]=b;
+      out[i+3] = dist < tol ? 0 : a;
+    }
+    originalImageData = imgData;
+    renderComposited();
+    statusText.textContent = 'Фон прибрано — перевірте результат';
+  }
+
+  function renderComposited(){
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0,0,w,h);
+    ctx.putImageData(originalImageData, 0, 0);
+    drawCropOverlay();
+  }
+
+  // re-render when bg color swatch changes, if an image is loaded
+  document.querySelectorAll('.swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=>{ if(originalImageData) renderComposited(); });
+  });
+
+  toleranceInput.addEventListener('change', ()=>{ /* applied on next click */ });
+
+  resetBtn.addEventListener('click', ()=>{
+    if(!img) return;
+    setupCanvas();
+  });
+
+  // ---- crop rectangle overlay, drawn directly on canvas on top ----
+  let cropOverlayCanvas = document.createElement('canvas');
+  recropBtn.addEventListener('click', ()=>{
+    const w = canvas.width, h = canvas.height;
+    const size = Math.min(w,h) * 0.7;
+    cropRect = { x:(w-size)/2, y:(h-size*1.3)/2, w:size, h:size*1.3 };
+    if(cropRect.y < 0) cropRect.y = 0;
+    renderComposited();
+  });
+
+  function clearCropOverlay(){ /* no-op, overlay drawn each render */ }
+
+  function getAspect(){
+    if(sizePreset.value === 'custom'){
+      return (parseFloat(customW.value)||3) / (parseFloat(customH.value)||4);
+    }
+    const [wc,hc] = sizePreset.value.split('x').map(Number);
+    return wc/hc;
+  }
+
+  function drawCropOverlay(){
+    if(!cropRect) return;
+    ctx.save();
+    ctx.strokeStyle = '#a3372f';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6,4]);
+    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+    ctx.setLineDash([]);
+    // handle
+    ctx.fillStyle = '#a3372f';
+    ctx.fillRect(cropRect.x+cropRect.w-8, cropRect.y+cropRect.h-8, 16, 16);
+    ctx.restore();
+  }
+
+  canvas.addEventListener('mousedown', (e)=>{
+    if(!cropRect) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    const handleX = cropRect.x+cropRect.w, handleY = cropRect.y+cropRect.h;
+    if(Math.abs(x-handleX) < 14 && Math.abs(y-handleY) < 14){
+      dragState = {mode:'resize'};
+    } else if(x>cropRect.x && x<cropRect.x+cropRect.w && y>cropRect.y && y<cropRect.y+cropRect.h){
+      dragState = {mode:'move', offX: x-cropRect.x, offY: y-cropRect.y};
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e)=>{
+    if(!dragState || !cropRect) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    if(dragState.mode === 'move'){
+      cropRect.x = Math.max(0, Math.min(canvas.width-cropRect.w, x - dragState.offX));
+      cropRect.y = Math.max(0, Math.min(canvas.height-cropRect.h, y - dragState.offY));
+    } else if(dragState.mode === 'resize'){
+      const aspect = getAspect();
+      let newW = Math.max(20, x - cropRect.x);
+      let newH = newW / aspect;
+      if(cropRect.y + newH > canvas.height){
+        newH = canvas.height - cropRect.y;
+        newW = newH * aspect;
+      }
+      cropRect.w = newW;
+      cropRect.h = newH;
+    }
+    renderComposited();
+  });
+
+  window.addEventListener('mouseup', ()=>{ dragState = null; });
+
+  sizePreset.addEventListener('change', ()=>{
+    if(cropRect){
+      const aspect = getAspect();
+      cropRect.h = cropRect.w / aspect;
+      if(cropRect.y + cropRect.h > canvas.height) cropRect.h = canvas.height - cropRect.y;
+      renderComposited();
+    }
+  });
+  customW.addEventListener('input', ()=>{ if(cropRect && sizePreset.value==='custom'){ const a=getAspect(); cropRect.h=cropRect.w/a; renderComposited(); }});
+  customH.addEventListener('input', ()=>{ if(cropRect && sizePreset.value==='custom'){ const a=getAspect(); cropRect.h=cropRect.w/a; renderComposited(); }});
+
+  // ---- apply: produce final cropped image at 300 dpi for chosen physical size ----
+  applyBtn.addEventListener('click', ()=>{
+    if(!originalImageData) return;
+    if(!cropRect){
+      // default centered crop matching aspect
+      const aspect = getAspect();
+      const w = canvas.width, h = canvas.height;
+      let cw = w, ch = w/aspect;
+      if(ch > h){ ch = h; cw = h*aspect; }
+      cropRect = { x:(w-cw)/2, y:(h-ch)/2, w:cw, h:ch };
+    }
+
+    let wCm, hCm;
+    if(sizePreset.value === 'custom'){
+      wCm = parseFloat(customW.value)||3;
+      hCm = parseFloat(customH.value)||4;
+    } else {
+      const [wc,hc] = sizePreset.value.split('x').map(Number);
+      wCm = wc/10; hCm = hc/10;
+    }
+
+    const dpi = 300;
+    const outW = Math.round(wCm/2.54*dpi);
+    const outH = Math.round(hCm/2.54*dpi);
+
+    resultCanvas = document.createElement('canvas');
+    resultCanvas.width = outW;
+    resultCanvas.height = outH;
+    const rctx = resultCanvas.getContext('2d');
+    rctx.fillStyle = bgColor;
+    rctx.fillRect(0,0,outW,outH);
+
+    // draw current composited canvas's crop region into result, scaled
+    rctx.imageSmoothingQuality = 'high';
+    rctx.drawImage(canvas, cropRect.x, cropRect.y, cropRect.w, cropRect.h, 0, 0, outW, outH);
+
+    previewFrame.innerHTML = '';
+    const previewImg = document.createElement('img');
+    previewImg.src = resultCanvas.toDataURL('image/png');
+    const maxPreviewH = 260;
+    const scale = Math.min(1, maxPreviewH/outH);
+    previewImg.style.width = (outW*scale)+'px';
+    previewImg.style.height = (outH*scale)+'px';
+    previewFrame.appendChild(previewImg);
+
+    dimsReadout.innerHTML = `<b>${wCm.toFixed(1)} × ${hCm.toFixed(1)} см</b> · ${outW} × ${outH} px · 300 dpi`;
+    downloadBtn.disabled = false;
+    statusText.textContent = 'Готово — перевірте результат праворуч';
+  });
+
+  downloadBtn.addEventListener('click', ()=>{
+    if(!resultCanvas) return;
+    const link = document.createElement('a');
+    link.download = 'foto-dlya-dokumenta.png';
+    link.href = resultCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // ---- print sheet: tile multiple copies of the cropped photo on a paper sheet, with cut guides ----
+  const paperPreset = document.getElementById('paperPreset');
+  const copiesCount = document.getElementById('copiesCount');
+  const buildSheetBtn = document.getElementById('buildSheetBtn');
+  const downloadSheetBtn = document.getElementById('downloadSheetBtn');
+  const sheetPreviewFrame = document.getElementById('sheetPreviewFrame');
+  const sheetDimsReadout = document.getElementById('sheetDimsReadout');
+  let sheetCanvas = null;
+
+  // unlock the sheet button once a single photo has been produced
+  const observerEnable = () => { buildSheetBtn.disabled = !resultCanvas; };
+  applyBtn.addEventListener('click', ()=> setTimeout(observerEnable, 0));
+
+  function getPaperCm(){
+    if(paperPreset.value === '10x15') return {w:10, h:15};
+    if(paperPreset.value === '13x18') return {w:13, h:18};
+    return {w:21, h:29.7}; // A4
+  }
+
+  function getPhotoCm(){
+    if(sizePreset.value === 'custom'){
+      return { w: parseFloat(customW.value)||3, h: parseFloat(customH.value)||4 };
+    }
+    const [wc,hc] = sizePreset.value.split('x').map(Number);
+    return { w: wc/10, h: hc/10 };
+  }
+
+  buildSheetBtn.addEventListener('click', ()=>{
+    if(!resultCanvas) return;
+
+    const dpi = 300;
+    const margin = 0.3; // cm border around sheet
+    const gap = 0.2;    // cm gap between photos (cut line sits here)
+
+    const paper = getPaperCm();
+    const photo = getPhotoCm();
+
+    // figure out grid that fits, maximizing copies unless user fixed a count
+    const usableW = paper.w - margin*2;
+    const usableH = paper.h - margin*2;
+
+    let cols = Math.max(1, Math.floor((usableW + gap) / (photo.w + gap)));
+    let rows = Math.max(1, Math.floor((usableH + gap) / (photo.h + gap)));
+
+    let total = cols*rows;
+    if(copiesCount.value !== 'auto'){
+      const wanted = parseInt(copiesCount.value,10);
+      // shrink grid to just fit the wanted count, keeping it visually balanced
+      while(cols*rows > wanted && cols>1){ cols--; }
+      while(cols*rows < wanted && cols*rows < total){ rows++; }
+      total = Math.min(wanted, cols*rows);
+    }
+
+    const outWpx = Math.round(paper.w/2.54*dpi);
+    const outHpx = Math.round(paper.h/2.54*dpi);
+    const marginPx = Math.round(margin/2.54*dpi);
+    const gapPx = Math.round(gap/2.54*dpi);
+    const photoWpx = Math.round(photo.w/2.54*dpi);
+    const photoHpx = Math.round(photo.h/2.54*dpi);
+
+    sheetCanvas = document.createElement('canvas');
+    sheetCanvas.width = outWpx;
+    sheetCanvas.height = outHpx;
+    const sctx = sheetCanvas.getContext('2d');
+    sctx.fillStyle = '#ffffff';
+    sctx.fillRect(0,0,outWpx,outHpx);
+
+    let placed = 0;
+    outer:
+    for(let r=0; r<rows; r++){
+      for(let c=0; c<cols; c++){
+        if(placed >= total) break outer;
+        const x = marginPx + c*(photoWpx+gapPx);
+        const y = marginPx + r*(photoHpx+gapPx);
+        if(x+photoWpx > outWpx-marginPx+1 || y+photoHpx > outHpx-marginPx+1) continue;
+        sctx.drawImage(resultCanvas, 0,0, resultCanvas.width, resultCanvas.height, x, y, photoWpx, photoHpx);
+        placed++;
+      }
+    }
+
+    // cut guide lines (thin dashed grey) around each photo
+    sctx.strokeStyle = '#999999';
+    sctx.lineWidth = Math.max(1, dpi/300);
+    sctx.setLineDash([dpi*0.04, dpi*0.04]);
+    placed = 0;
+    outer2:
+    for(let r=0; r<rows; r++){
+      for(let c=0; c<cols; c++){
+        if(placed >= total) break outer2;
+        const x = marginPx + c*(photoWpx+gapPx);
+        const y = marginPx + r*(photoHpx+gapPx);
+        if(x+photoWpx > outWpx-marginPx+1 || y+photoHpx > outHpx-marginPx+1) continue;
+        sctx.strokeRect(x-2, y-2, photoWpx+4, photoHpx+4);
+        placed++;
+      }
+    }
+
+    sheetPreviewFrame.innerHTML = '';
+    const previewImg = document.createElement('img');
+    previewImg.src = sheetCanvas.toDataURL('image/png');
+    const maxPreviewH = 280;
+    const scale = Math.min(1, maxPreviewH/outHpx);
+    previewImg.style.width = (outWpx*scale)+'px';
+    previewImg.style.height = (outHpx*scale)+'px';
+    sheetPreviewFrame.appendChild(previewImg);
+
+    sheetDimsReadout.innerHTML = `<b>${placed} фото</b> на аркуші ${paper.w} × ${paper.h} см · ${outWpx} × ${outHpx} px · 300 dpi`;
+    downloadSheetBtn.disabled = false;
+  });
+
+  downloadSheetBtn.addEventListener('click', ()=>{
+    if(!sheetCanvas) return;
+    const link = document.createElement('a');
+    link.download = 'arkush-dlya-druku.png';
+    link.href = sheetCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+})();
+</script>
+
+</body>
+</html>
