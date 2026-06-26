@@ -357,7 +357,10 @@
       </div>
 
       <div class="row" style="margin-top:18px;">
-        <button class="ghost" id="recropBtn" disabled>Показати рамку кадрування</button>
+        <button class="primary" id="autoFitBtn" disabled>Автоматичний розмір</button>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="ghost" id="recropBtn" disabled>Показати рамку вручну</button>
       </div>
 
       <div class="row" style="margin-top:10px;">
@@ -451,6 +454,83 @@
   }
   bgModeBtn.addEventListener('click', ()=> setBgMode(!bgRemovalActive));
   const recropBtn = document.getElementById('recropBtn');
+  const autoFitBtn = document.getElementById('autoFitBtn');
+
+  function isSkinTone(r,g,b){
+    return r>95 && g>40 && b>20 &&
+           (Math.max(r,g,b) - Math.min(r,g,b)) > 15 &&
+           Math.abs(r-g) > 15 && r>g && r>b;
+  }
+
+  function autoFitCrop(){
+    if(!originalImageData) return;
+    const w = canvas.width, h = canvas.height;
+    const data = originalImageData.data;
+
+    // 1) bounding box of skin-tone pixels (approximates the face)
+    let minX=w, maxX=0, minY=h, maxY=0, found=false;
+    for(let y=0; y<h; y+=2){
+      for(let x=0; x<w; x+=2){
+        const i = (y*w+x)*4;
+        if(data[i+3] < 40) continue; // transparent (removed background)
+        if(isSkinTone(data[i], data[i+1], data[i+2])){
+          if(x<minX) minX=x;
+          if(x>maxX) maxX=x;
+          if(y<minY) minY=y;
+          if(y>maxY) maxY=y;
+          found=true;
+        }
+      }
+    }
+
+    if(!found){
+      statusText.textContent = 'Не вдалося визначити обличчя автоматично — підлаштуйте рамку вручну';
+      recropBtn.click();
+      return;
+    }
+
+    const faceCenterX = (minX+maxX)/2;
+    const chinY = maxY;
+
+    // 2) crown = topmost non-transparent pixel within a band centered on the face
+    const bandHalf = Math.max(20, (maxX-minX)/2 + 10);
+    let crownY = 0;
+    outer:
+    for(let y=0; y<h; y++){
+      for(let x=Math.max(0,faceCenterX-bandHalf); x<Math.min(w,faceCenterX+bandHalf); x+=2){
+        const i=(y*w+x)*4;
+        if(data[i+3] > 40){ crownY = y; break outer; }
+      }
+    }
+
+    const faceHeightPx = Math.max(10, chinY - crownY);
+    const s = STANDARDS[sizePreset.value] || STANDARDS['custom'];
+    const aspect = getAspect();
+
+    // crop height so that detected face height matches the standard's faceFillPct
+    let cropH = faceHeightPx / (s.faceFillPct/100);
+    let cropW = cropH * aspect;
+
+    // figure out where crop top must sit so detected crownY lands on the guide's crown line
+    const guideEyeOffset = cropH * (1 - s.eyeFromBottomPct/100);
+    const guideFaceH = cropH * (s.faceFillPct/100);
+    const guideCrownOffset = guideEyeOffset - guideFaceH*0.45;
+    let cropY = crownY - guideCrownOffset;
+    let cropX = faceCenterX - cropW/2;
+
+    // clamp within canvas, shrinking slightly if needed rather than distorting aspect
+    if(cropW > w){ cropW = w; cropH = cropW/aspect; }
+    if(cropH > h){ cropH = h; cropW = cropH*aspect; }
+    cropX = Math.max(0, Math.min(w-cropW, cropX));
+    cropY = Math.max(0, Math.min(h-cropH, cropY));
+
+    cropRect = { x:cropX, y:cropY, w:cropW, h:cropH };
+    setBgMode(false);
+    renderOverlay();
+    statusText.textContent = 'Рамку підібрано автоматично — перевірте лінії та натисніть «Сформувати фото»';
+  }
+
+  autoFitBtn.addEventListener('click', autoFitCrop);
   const applyBtn = document.getElementById('applyBtn');
   const downloadBtn = document.getElementById('downloadBtn');
   const sizePreset = document.getElementById('sizePreset');
@@ -538,6 +618,7 @@
     resetBtn.disabled = false;
     recropBtn.disabled = false;
     applyBtn.disabled = false;
+    autoFitBtn.disabled = false;
     bgModeBtn.disabled = false;
     setBgMode(true);
 
