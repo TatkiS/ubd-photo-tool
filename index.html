@@ -308,12 +308,16 @@
 
       <label class="field">Розмір під документ</label>
       <select id="sizePreset">
-        <option value="30x40">3 × 4 см — посвідчення УБД, паспорт, довідки</option>
+        <option value="30x40">3 × 4 см — посвідчення УБД, паспорт</option>
         <option value="35x45">3,5 × 4,5 см — біометричний паспорт, ID-картка</option>
-        <option value="40x50">4 × 5 см — водійське, інші посвідчення</option>
-        <option value="40x60">4 × 6 см — деякі анкети/військові документи</option>
+        <option value="40x60">4 × 6 см — універсальні документи</option>
+        <option value="90x120">9 × 12 см — особова справа</option>
         <option value="custom">Інший розмір (вказати см)</option>
       </select>
+
+      <div id="standardBox" style="margin-top:10px; padding:10px 12px; background:#f6f4ee; border:1px solid var(--line); font-family:Arial; font-size:12px; color:var(--ink); line-height:1.6;">
+        <!-- filled by JS -->
+      </div>
 
       <div class="row" id="customSizeRow" style="display:none; margin-top:10px;">
         <div>
@@ -328,7 +332,7 @@
 
       <label class="field">Кадрування</label>
       <div style="font-family:Arial; font-size:12px; color:var(--muted); margin-bottom:8px;">
-        Перетягуйте рамку прямо на фото в полотні зліва, щоб обрати ділянку обличчя.
+        На полотні зліва з'явиться рамка з трьома лініями — маківка, очі, підборіддя. Перетягуйте та масштабуйте фото так, щоб обличчя точно вписувалось між лінією маківки та лінією підборіддя — це і є стандарт заповненості.
       </div>
 
       <div class="row" style="margin-top:18px;">
@@ -429,6 +433,26 @@
   let cropRect = null; // {x,y,w,h} in canvas pixel coords
   let dragState = null;
   let resultCanvas = null;
+
+  // ---- official-style standards per document size: face fill % (chin-to-crown vs photo height), eye line position ----
+  const STANDARDS = {
+    '30x40': { label:'3 × 4 см — посвідчення УБД, паспорт', faceFillPct:70, eyeFromBottomPct:62, bg:'білий, матовий папір' },
+    '35x45': { label:'3,5 × 4,5 см — біометричний паспорт, ID', faceFillPct:75, eyeFromBottomPct:62, bg:'білий або світло-сірий' },
+    '40x60': { label:'4 × 6 см — універсальні документи', faceFillPct:45, eyeFromBottomPct:58, bg:'білий' },
+    '90x120': { label:'9 × 12 см — особова справа', faceFillPct:45, eyeFromBottomPct:58, bg:'білий' },
+    'custom': { label:'довільний розмір', faceFillPct:70, eyeFromBottomPct:60, bg:'білий' }
+  };
+
+  const standardBox = document.getElementById('standardBox');
+  function renderStandardBox(){
+    const s = STANDARDS[sizePreset.value];
+    standardBox.innerHTML =
+      `<b>Стандарт для цього формату:</b><br>`+
+      `Обличчя (від підборіддя до маківки) — <b>${s.faceFillPct}%</b> висоти фото<br>`+
+      `Фон — ${s.bg}`;
+  }
+  sizePreset.addEventListener('change', renderStandardBox);
+  renderStandardBox();
 
   document.querySelectorAll('.swatch').forEach(sw=>{
     sw.addEventListener('click', ()=>{
@@ -561,9 +585,38 @@
     ctx.setLineDash([6,4]);
     ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
     ctx.setLineDash([]);
-    // handle
+    // resize handle
     ctx.fillStyle = '#a3372f';
     ctx.fillRect(cropRect.x+cropRect.w-8, cropRect.y+cropRect.h-8, 16, 16);
+
+    // ---- standard guide lines: crown / eyes / chin ----
+    const s = STANDARDS[sizePreset.value] || STANDARDS['custom'];
+    const faceH = cropRect.h * (s.faceFillPct/100);
+    const eyeY = cropRect.y + cropRect.h * (1 - s.eyeFromBottomPct/100);
+    const crownY = eyeY - faceH*0.45;
+    const chinY = crownY + faceH;
+
+    function guideLine(y, text, color){
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4,3]);
+      ctx.beginPath();
+      ctx.moveTo(cropRect.x, y);
+      ctx.lineTo(cropRect.x+cropRect.w, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '11px Arial';
+      ctx.fillStyle = color;
+      const tw = ctx.measureText(text).width;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fillRect(cropRect.x+2, y-13, tw+6, 14);
+      ctx.fillStyle = color;
+      ctx.fillText(text, cropRect.x+5, y-2);
+    }
+    guideLine(crownY, 'маківка', '#1f3a5c');
+    guideLine(eyeY, 'очі', '#a3372f');
+    guideLine(chinY, 'підборіддя', '#1f3a5c');
+
     ctx.restore();
   }
 
